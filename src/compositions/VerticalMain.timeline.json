@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "items": [
     {
       "id": "vertical-background",
@@ -11,6 +11,15 @@
       "content": {
         "type": "nested",
         "composition": "vertical-backdrop"
+      },
+      "layout": {
+        "rect": [
+          0,
+          0,
+          1080,
+          1920
+        ],
+        "fit": "cover"
       }
     },
     {
@@ -23,6 +32,15 @@
       "content": {
         "type": "nested",
         "composition": "vertical-lower-third"
+      },
+      "layout": {
+        "rect": [
+          0,
+          0,
+          1080,
+          1920
+        ],
+        "fit": "cover"
       }
     }
   ]
