@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import type { AgentProjectSnapshot } from "@framediff/studio-model";
 import { readFile, writeFile } from "node:fs/promises";
 import { openComposition } from "./helpers";
 
@@ -95,7 +96,10 @@ test("the first recorded gesture bootstraps motion source and commits without an
     expect(committed).toContain('id: "backdrop-orb-a-motion-path"');
     expect(committed).toContain("motionPath:");
     await expect.poll(async () => page.evaluate(async () => {
-      const inspected = await window.__framediffAgent!.inspect();
+      const inspected = (await window.__framediffStudio!.query({
+        id: "vertical-motion-inspect",
+        query: { type: "project.snapshot" },
+      })).result as AgentProjectSnapshot;
       return inspected.compositions
         .find((entry) => entry.composition.key === "vertical-backdrop")
         ?.animations.some((animation) => animation.id === "backdrop-orb-a-motion-path");
@@ -167,8 +171,11 @@ test("a comp drags into the portrait generative recipe as a comp reference", asy
 test("the portrait root can render an exact non-empty frame", async ({ page }) => {
   await openComposition(page, "vertical-main", verticalBase);
   const result = await page.evaluate(async () => {
-    const inspected = await window.__framediffAgent!.inspect();
-    const frame = await window.__framediffAgent!.snapshot("vertical-main", 60);
+    const inspected = (await window.__framediffStudio!.query({
+      id: "vertical-render-inspect",
+      query: { type: "project.snapshot" },
+    })).result as AgentProjectSnapshot;
+    const frame = await window.__framediffStudio!.snapshot("vertical-main", 60);
     const main = inspected.compositions.find((entry) => entry.composition.key === "vertical-main")!;
     return {
       width: main.composition.width,
