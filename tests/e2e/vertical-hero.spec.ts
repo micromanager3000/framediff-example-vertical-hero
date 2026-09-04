@@ -6,20 +6,11 @@ import { openComposition } from "./helpers";
 const verticalBase = "http://127.0.0.1:4180";
 const lowerDocumentFile = "src/compositions/VerticalLowerThird.comp.json";
 const lowerHtmlFile = "src/compositions/VerticalLowerThird.html";
-const backdropModuleFile = "src/compositions/VerticalBackdrop.ts";
+const backdropDocumentFile = "src/compositions/VerticalBackdrop.comp.json";
 const mainTimelineFile = "src/compositions/VerticalMain.timeline.json";
 const mainHtmlFile = "src/compositions/VerticalMain.html";
 const generatorFile = "src/gen/VerticalAtmosphere.gen.ts";
 const generatorDataFile = "src/gen/VerticalAtmosphere.gen.json";
-
-async function readOptionalFile(file: string): Promise<string | null> {
-  try {
-    return await readFile(file, "utf8");
-  } catch (error) {
-    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return null;
-    throw error;
-  }
-}
 
 test("the from-scratch portrait comp edits JSON without rebuilding Studio", async ({ page }) => {
   const originalDocumentText = await readFile(lowerDocumentFile, "utf8");
@@ -57,8 +48,9 @@ test("the from-scratch portrait comp edits JSON without rebuilding Studio", asyn
   }
 });
 
-test("the first recorded gesture bootstraps motion source and commits without an error", async ({ page }) => {
-  const originalModule = await readFile(backdropModuleFile, "utf8");
+test("direct manipulation updates the JSON-backed orb and undoes atomically", async ({ page }) => {
+  const originalDocument = await readFile(backdropDocumentFile, "utf8");
+  const originalOrb = JSON.parse(originalDocument).orbA as { x: number; y: number };
 
   try {
     await openComposition(page, "vertical-backdrop", verticalBase);
@@ -78,39 +70,20 @@ test("the first recorded gesture bootstraps motion source and commits without an
     const start = { x: compositionBounds!.x + compositionBounds!.width - 16, y: orbBounds!.y + orbBounds!.height / 2 };
     await page.mouse.click(start.x, start.y);
     await expect(page.locator(".inspector > header strong")).toHaveText("backdrop-orb-a");
-    await page.getByRole("button", { name: "Record a move" }).click();
-
-    await page.mouse.move(start.x, start.y);
     await page.mouse.down();
-    for (let index = 1; index <= 14; index += 1) {
-      await page.mouse.move(start.x - index * 7, start.y + Math.sin(index / 3) * 28, { steps: 2 });
-      await page.waitForTimeout(38);
-    }
+    await page.mouse.move(start.x - 84, start.y + 28, { steps: 8 });
     await page.mouse.up();
-    await expect(page.getByRole("button", { name: "Save move" })).toBeEnabled();
-    await page.getByRole("button", { name: "Save move" }).click();
 
-    await expect.poll(async () => readOptionalFile(backdropModuleFile)).toContain("defineGsapTimeline");
-    const committed = await readFile(backdropModuleFile, "utf8");
-    expect(committed).toContain("setup: framediffRecordedMotionSetup");
-    expect(committed).toContain('id: "backdrop-orb-a-motion-path"');
-    expect(committed).toContain("motionPath:");
-    await expect.poll(async () => page.evaluate(async () => {
-      const inspected = (await window.__framediffStudio!.query({
-        id: "vertical-motion-inspect",
-        query: { type: "project.snapshot" },
-      })).result as AgentProjectSnapshot;
-      return inspected.compositions
-        .find((entry) => entry.composition.key === "vertical-backdrop")
-        ?.animations.some((animation) => animation.id === "backdrop-orb-a-motion-path");
-    })).toBe(true);
-    await expect(page.getByText("This module has no inline defineGsapTimeline() registration.", { exact: true })).toHaveCount(0);
+    await expect.poll(async () => {
+      const orb = JSON.parse(await readFile(backdropDocumentFile, "utf8")).orbA as { x: number; y: number };
+      return orb.x !== originalOrb.x || orb.y !== originalOrb.y;
+    }).toBe(true);
     await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeEnabled();
 
     await page.getByRole("button", { name: "Undo", exact: true }).click();
-    await expect.poll(async () => readOptionalFile(backdropModuleFile)).toBe(originalModule);
+    await expect.poll(async () => await readFile(backdropDocumentFile, "utf8")).toBe(originalDocument);
   } finally {
-    if (await readOptionalFile(backdropModuleFile) !== originalModule) await writeFile(backdropModuleFile, originalModule);
+    if (await readFile(backdropDocumentFile, "utf8") !== originalDocument) await writeFile(backdropDocumentFile, originalDocument);
   }
 });
 
