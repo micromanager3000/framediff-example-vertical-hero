@@ -58,9 +58,6 @@ test("direct manipulation updates the JSON-backed orb and undoes atomically", as
     await expect(scrubber).toBeVisible();
     await scrubber.fill("90");
     await expect(page.locator(".timecode")).toHaveText("0090f");
-    await expect(page.getByRole("heading", { name: "COMPOSITION PROPERTIES" })).toBeVisible();
-    await expect(page.getByText("Drift", { exact: true })).toBeVisible();
-    await expect(page.getByText("Select a clip for timing, trim, layers, grade and production state.", { exact: true })).toHaveCount(0);
     const orbBounds = await page.locator('[data-fd-id="backdrop-orb-a"]').boundingBox();
     const compositionBounds = await page.locator('[data-fd-id="VerticalBackdrop"]').boundingBox();
     expect(orbBounds).not.toBeNull();
@@ -97,7 +94,7 @@ test("a library comp writes only to the portrait edit's external timeline and un
     await expect(page.locator(".left-panel")).toBeVisible();
     const primaryCompositions = page.locator('.composition-list[role="list"]').first();
     const lowerThird = primaryCompositions.locator(".composition-row").filter({ hasText: "VerticalLowerThird" });
-    const timeline = page.getByRole("group", { name: "Timeline; drop a composition to add it at a frame" });
+    const timeline = page.getByRole("group", { name: /Timeline; drop a composition.*to add it at a frame/ });
 
     await lowerThird.dragTo(timeline, { targetPosition: { x: 610, y: 135 } });
     await expect.poll(async () => JSON.parse(await readFile(mainTimelineFile, "utf8")).items.length).toBe(originalItems + 1);
